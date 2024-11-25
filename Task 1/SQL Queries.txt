@@ -1,0 +1,57 @@
+# SQL Queries (Using SQLite dialect)
+
+# 1. Number of hospital visits per day over the period:
+
+SELECT 
+    created_at AS visit_day,
+    COUNT(id) AS hospital_visits
+FROM 
+    fact_hospital_visits
+GROUP BY 
+    visit_day
+ORDER BY 
+    visit_day;
+
+# 2. Number of patients attended to per doctor per month showing their names:
+
+SELECT 
+    strftime('%m', created_at) AS Month,
+    doctor_id,
+    doctor_name,
+    COUNT(DISTINCT patient_id) AS patients
+FROM 
+    fact_hospital_visits
+GROUP BY 
+    Month, doctor_id, doctor_name
+ORDER BY 
+    Month, doctor_name;
+
+# 3. The ratio of female to male patient visits per month:
+
+WITH gender_count AS (
+    SELECT 
+        strftime('%m', created_at) AS Month,
+        patient_sex,
+        COUNT(id) AS visits
+    FROM 
+        fact_hospital_visits
+    GROUP BY 
+        Month, patient_sex
+),
+pivot_table AS (
+    SELECT 
+        Month,
+        MAX(CASE WHEN patient_sex = 'female' THEN visits ELSE 0 END) AS female_visits,
+        MAX(CASE WHEN patient_sex = 'male' THEN visits ELSE 0 END) AS male_visits
+    FROM 
+        gender_count
+    GROUP BY 
+        Month
+)
+SELECT 
+    Month,
+    1.0 * female_visits/NULLIF(male_visits, 0) AS female_to_male_ratio
+FROM 
+    pivot_table
+ORDER BY 
+    Month;
